@@ -162,3 +162,35 @@ s32 osEepromLongWrite(UNUSED OSMesgQueue *mq, u8 address, u8 *buffer, int nbytes
 #endif
     return ret;
 }
+
+#ifdef __WIIU__
+#include <coreinit/thread.h>
+
+#define WTHREAD_STACK_SIZE 512 // TODO
+
+static u8 wThreadStack[WTHREAD_STACK_SIZE];
+void *wThreadArgs[2];
+
+static int wThreadMain(int argc, const char **argv)
+{
+    void (*entry)(void *);
+	entry = (void (*)(void *))wThreadArgs[0];
+    entry(wThreadArgs[1]);
+    return 0;
+}
+#endif
+
+void osCreateThread(N64_OSThread *thread, OSId id, void (*entry)(void *), void *arg, void *sp, OSPri pri) {
+#ifdef __WIIU__
+    wThreadArgs[0] = (void *)entry;
+    wThreadArgs[1] = arg;
+    OSCreateThread(&(thread->wiiUThread), wThreadMain, 0, NULL, (&wThreadStack) + WTHREAD_STACK_SIZE, WTHREAD_STACK_SIZE, 0 /* TODO */, OS_THREAD_ATTRIB_DETACHED | OS_THREAD_ATTRIB_AFFINITY_CPU1);
+#endif
+}
+
+void osStartThread(N64_OSThread *thread)
+{
+#ifdef __WIIU__
+    OSResumeThread(&(thread->wiiUThread));
+#endif
+}
