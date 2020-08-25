@@ -41,7 +41,7 @@ struct WiiUKeymap {
 #define SE(dir) VPAD_STICK_R_EMULATION_##dir, WPAD_CLASSIC_STICK_R_EMULATION_##dir, WPAD_PRO_STICK_R_EMULATION_##dir
 
 // Rumble stack size - might be too small!
-#define RUMBLE_STACK_SIZE 0x200
+#define RUMBLE_STACK_SIZE 0x400
 
 struct WiiUKeymap map[] = {
     { B_BUTTON, VB(B) | VB(Y), CB(B) | CB(Y), PB(B) | PB(Y) },

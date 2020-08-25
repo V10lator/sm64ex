@@ -168,9 +168,12 @@ s32 osEepromLongWrite(UNUSED OSMesgQueue *mq, u8 address, u8 *buffer, int nbytes
 
 static int wThreadMain(int argc, const char **argv) {
     N64_OSThread *thread = (N64_OSThread *)argv;
-WHBLogPrintf("wThreadMain: 0x%08X 0x%08X", thread->entry, thread->arg);
     thread->entry(thread->arg);
     return 0;
+}
+
+void wDestroyThread(OSThread *thread, void *stack) {
+    free(stack);
 }
 #endif
 
@@ -179,14 +182,17 @@ void osCreateThread(N64_OSThread *thread, OSId id, void (*entry)(void *), void *
     // TODO: Priority mapping:
     // Wii U: 0 = highest priority, 31 = lowest, 16 = default
     // N64: 127 = highest, 0 = lowest
+    thread->stack = malloc(WTHREAD_STACK_SIZE);
+    if(thread->stack == NULL)
+        return;
+    
     OSCreateThread(&(thread->wiiUThread), wThreadMain, 1, (char *)thread, thread->stack + WTHREAD_STACK_SIZE, WTHREAD_STACK_SIZE, 16 /* TODO */, OS_THREAD_ATTRIB_DETACHED | OS_THREAD_ATTRIB_AFFINITY_CPU1);
-//    thread->entry(thread->arg); // This works...
     thread->entry = entry;
     thread->arg = arg;
-    WHBLogPrintf("osCreateThread: 0x%08X 0x%08X", thread->entry, thread->arg);
     char name[32];
     sprintf(name, "Super Mario Thread %d", id);
     OSSetThreadName(&(thread->wiiUThread), name);
+    OSSetThreadDeallocator(&(thread->wiiUThread), wDestroyThread);
 #endif
 }
 
