@@ -41,7 +41,7 @@ struct WiiUKeymap {
 #define SE(dir) VPAD_STICK_R_EMULATION_##dir, WPAD_CLASSIC_STICK_R_EMULATION_##dir, WPAD_PRO_STICK_R_EMULATION_##dir
 
 // Rumble stack size - might be too small!
-#define RUMBLE_STACK_SIZE 0x400
+#define RUMBLE_STACK_SIZE 0x4096
 
 struct WiiUKeymap map[] = {
     { B_BUTTON, VB(B) | VB(Y), CB(B) | CB(Y), PB(B) | PB(Y) },
@@ -77,6 +77,8 @@ static void controller_wiiu_init(void) {
         map[0] = (struct WiiUKeymap) { B_BUTTON, VB(Y) | VB(X), CB(Y) | CB(X), PB(Y) | PB(X) };
         map[1] = (struct WiiUKeymap) { A_BUTTON, VB(B) | VB(A), CB(B) | CB(A), PB(B) | PB(A) };
     }
+    
+    rumbleThreadStack = malloc(RUMBLE_STACK_SIZE);
 }
 
 static void read_vpad(OSContPad *pad) {
@@ -211,6 +213,7 @@ static u32 controller_wiiu_rawkey(void) {
 }
 
 static void controller_wiiu_shutdown(void) {
+    free(rumbleThreadStack);
 }
 
 static void rumbleThreadMain(void *arg)
@@ -246,7 +249,7 @@ static void controller_wiiu_rumble_play(f32 strength, f32 length) {
     rumbleActive = true;
     rumbleLength = length;
     rumbleStop = false;
-    osCreateThread(&rumbleThread, 666, rumbleThreadMain, NULL, rumbleThreadStack + RUMBLE_STACK_SIZE, OS_PRIORITY_APPMAX); // TODO: What's that OSid?
+    osCreateThread(&rumbleThread, 3, rumbleThreadMain, NULL, rumbleThreadStack + RUMBLE_STACK_SIZE, 10);
     osStartThread(&rumbleThread);
 }
 

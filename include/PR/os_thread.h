@@ -74,6 +74,7 @@ typedef struct N64_OSThread_s
     u8 *stack; // Make this right behind wiiUThread so it's alignment is good, too
     void (*entry)(void *);
     void *arg;
+    OSPri pri;
 #endif
 } N64_OSThread;
 WUT_CHECK_OFFSET(N64_OSThread, 0x10, wiiUThread); // Make really sure wiiUThread is 8 byte aligned

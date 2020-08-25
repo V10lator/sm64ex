@@ -172,27 +172,40 @@ static int wThreadMain(int argc, const char **argv) {
     return 0;
 }
 
-void wDestroyThread(OSThread *thread, void *stack) {
-    free(stack);
+/* 
+ * Priority mapping:
+ * Wii U: 0 = highest priority, 31 = lowest, 16 = default
+ * SM64: 127 = highest, 0 = lowest, game (default) = 10, audio = 20
+ * For simplicity we support prios 0 - 26 only for now
+ */
+int wMapThreadPriority(OSPri pri) {
+    return 32 - (pri + 6);
 }
+
 #endif
 
 void osCreateThread(N64_OSThread *thread, OSId id, void (*entry)(void *), void *arg, void *sp, OSPri pri) {
 #ifdef __WIIU__
-    // TODO: Priority mapping:
-    // Wii U: 0 = highest priority, 31 = lowest, 16 = default
-    // N64: 127 = highest, 0 = lowest
     thread->stack = malloc(WTHREAD_STACK_SIZE);
     if(thread->stack == NULL)
         return;
-    
-    OSCreateThread(&(thread->wiiUThread), wThreadMain, 1, (char *)thread, thread->stack + WTHREAD_STACK_SIZE, WTHREAD_STACK_SIZE, 16 /* TODO */, OS_THREAD_ATTRIB_DETACHED | OS_THREAD_ATTRIB_AFFINITY_CPU1);
+
+    // Get stack size - TODO: Is there no more efficient way?
+    char *stack = (char *)sp;
+    size_t size = 0;
+    do {
+        size += 1;
+        stack -= 1;
+    } while(malloc_usable_size(stack) == 0);
+    stack -= size; // The stack might be bigger than defined thanks to alignment, so we use this instead of sp.
+
+    OSCreateThread(&(thread->wiiUThread), wThreadMain, 1, (char *)thread, stack, size, wMapThreadPriority(pri), OS_THREAD_ATTRIB_DETACHED | OS_THREAD_ATTRIB_AFFINITY_CPU1);
     thread->entry = entry;
     thread->arg = arg;
+    thread->pri = pri;
     char name[32];
     sprintf(name, "Super Mario Thread %d", id);
     OSSetThreadName(&(thread->wiiUThread), name);
-    OSSetThreadDeallocator(&(thread->wiiUThread), wDestroyThread);
 #endif
 }
 
@@ -215,13 +228,19 @@ void osStopThread(N64_OSThread *thread) {
 #endif
 }
 
-/* TODO: These functions are already implemented elsewhere
+
 OSPri osGetThreadPri(N64_OSThread *thread) {
+#ifdef __WIIU__
+    return &(thread->pri);
+#else
     // STUB
-    return 127;
+    return 10;
+#endif
 }
 
 void osSetThreadPri(N64_OSThread *thread, OSPri pri) {
-    // STUB
+#ifdef __WIIU__
+    OSSetThreadPriority(&(thread->wiiUThread), wMapThreadPriority(pri));
+#endif
 }
-*/
+
