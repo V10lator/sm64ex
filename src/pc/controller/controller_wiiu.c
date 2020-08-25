@@ -215,6 +215,7 @@ static void controller_wiiu_shutdown(void) {
 
 static void rumbleThreadMain(void *arg)
 {
+WHBLogPrint("rumbleThreadMain!");
     int length = (int)(rumbleLength * 1000.0f); // Seconds to milliseconds
 
     // We lazily fill the DRC rumble queue to maximum. This has room for improvement but we cancel the queue later on, so it works

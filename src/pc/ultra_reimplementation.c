@@ -166,31 +166,56 @@ s32 osEepromLongWrite(UNUSED OSMesgQueue *mq, u8 address, u8 *buffer, int nbytes
 #ifdef __WIIU__
 #include <coreinit/thread.h>
 
-#define WTHREAD_STACK_SIZE 512 // TODO
-
-static u8 wThreadStack[WTHREAD_STACK_SIZE];
-void *wThreadArgs[2];
-
-static int wThreadMain(int argc, const char **argv)
-{
-    void (*entry)(void *);
-	entry = (void (*)(void *))wThreadArgs[0];
-    entry(wThreadArgs[1]);
+static int wThreadMain(int argc, const char **argv) {
+    N64_OSThread *thread = (N64_OSThread *)argv;
+WHBLogPrintf("wThreadMain: 0x%08X 0x%08X", thread->entry, thread->arg);
+    thread->entry(thread->arg);
     return 0;
 }
 #endif
 
 void osCreateThread(N64_OSThread *thread, OSId id, void (*entry)(void *), void *arg, void *sp, OSPri pri) {
 #ifdef __WIIU__
-    wThreadArgs[0] = (void *)entry;
-    wThreadArgs[1] = arg;
-    OSCreateThread(&(thread->wiiUThread), wThreadMain, 0, NULL, (&wThreadStack) + WTHREAD_STACK_SIZE, WTHREAD_STACK_SIZE, 0 /* TODO */, OS_THREAD_ATTRIB_DETACHED | OS_THREAD_ATTRIB_AFFINITY_CPU1);
+    // TODO: Priority mapping:
+    // Wii U: 0 = highest priority, 31 = lowest, 16 = default
+    // N64: 127 = highest, 0 = lowest
+    OSCreateThread(&(thread->wiiUThread), wThreadMain, 1, (char *)thread, thread->stack + WTHREAD_STACK_SIZE, WTHREAD_STACK_SIZE, 16 /* TODO */, OS_THREAD_ATTRIB_DETACHED | OS_THREAD_ATTRIB_AFFINITY_CPU1);
+//    thread->entry(thread->arg); // This works...
+    thread->entry = entry;
+    thread->arg = arg;
+    WHBLogPrintf("osCreateThread: 0x%08X 0x%08X", thread->entry, thread->arg);
+    char name[32];
+    sprintf(name, "Super Mario Thread %d", id);
+    OSSetThreadName(&(thread->wiiUThread), name);
 #endif
 }
 
-void osStartThread(N64_OSThread *thread)
-{
+void osDestroyThread(N64_OSThread *thread) {
 #ifdef __WIIU__
+    OSCancelThread(&(thread->wiiUThread));
+#endif
+}
+
+void osStartThread(N64_OSThread *thread) {
+#ifdef __WIIU__
+WHBLogPrint("osStartThread");
     OSResumeThread(&(thread->wiiUThread));
 #endif
 }
+
+void osStopThread(N64_OSThread *thread) {
+#ifdef __WIIU__
+    OSCancelThread(&(thread->wiiUThread));
+#endif
+}
+
+/* TODO: These functions are already implemented elsewhere
+OSPri osGetThreadPri(N64_OSThread *thread) {
+    // STUB
+    return 127;
+}
+
+void osSetThreadPri(N64_OSThread *thread, OSPri pri) {
+    // STUB
+}
+*/

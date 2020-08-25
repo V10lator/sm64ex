@@ -21,6 +21,10 @@
 #define OS_STATE_RUNNING    4
 #define OS_STATE_WAITING    8
 
+#ifdef __WIIU__
+#define WTHREAD_STACK_SIZE 1024
+#endif
+
 /* Types */
 
 typedef s32 OSPri;
@@ -67,6 +71,9 @@ typedef struct N64_OSThread_s
     /*0x20*/ __OSThreadContext context;
 #else
     /*0x10*/ OSThread wiiUThread; // Make sure to be 8 byte aligned
+    u8 stack[WTHREAD_STACK_SIZE]; // Make this right behind wiiUThread so it's alignment is good, too
+    void (*entry)(void *);
+    void *arg;
 #endif
 } N64_OSThread;
 WUT_CHECK_OFFSET(N64_OSThread, 0x10, wiiUThread); // Make really sure wiiUThread is 8 byte aligned
